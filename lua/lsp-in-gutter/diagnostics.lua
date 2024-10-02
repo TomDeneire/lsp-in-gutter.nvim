@@ -58,7 +58,7 @@ function M.print_line_diagnostics()
                 local message = string.gsub(diagnostic.message, "\n", " ; ")
 
                 if string.len(message) > max_length then
-                    message = string.sub(message, 1, max_length) .. "..."
+                    message = string.sub(message, 1, max_length-3) .. "..."
                 end
 
                 output = message
