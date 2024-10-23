@@ -62,44 +62,43 @@ function M.print_line_diagnostics()
         -- and require ENTER to quit
         local max_length = vim.o.columns - 20
 
-        for _, diagnostic in ipairs(diagnostics) do
-            local echo_mode = ""
-            if opts["show_colors"] then
-                if diagnostic.severity == vim.diagnostic.severity.ERROR then
-                    echo_mode = "ErrorMsg"
-                elseif diagnostic.severity == vim.diagnostic.severity.WARN then
-                    echo_mode = "WarningMsg"
-                end
+        local diagnostic = diagnostics[1]
+        local echo_mode = ""
+        if opts["show_colors"] then
+            if diagnostic.severity == vim.diagnostic.severity.ERROR then
+                echo_mode = "ErrorMsg"
+            elseif diagnostic.severity == vim.diagnostic.severity.WARN then
+                echo_mode = "WarningMsg"
             end
-
-            local output = ""
-
-            -- User-defined formatting
-            if opts["format"] ~= nil then
-                output = opts["format"](diagnostic)
-            end
-
-            -- Option-defined formatting
-            if opts["format"] == nil then
-                -- Replace newlines. Otherwise same scenario as gutter overflow
-                local message = string.gsub(diagnostic.message, "\n", " ; ")
-
-                if string.len(message) > max_length then
-                    message = string.sub(message, 1, max_length - 3) .. "..."
-                end
-
-                output = message
-                if opts["show_lnum"] then
-                    output = diagnostic.lnum + 1 .. ": " .. message
-                end
-                if opts["show_icons"] then
-                    local icon = opts["icons"][diagnostic.severity]
-                    output = icon .. output
-                end
-            end
-
-            vim.api.nvim_echo({ { output, echo_mode } }, false, {})
         end
+
+        local output = ""
+
+        -- User-defined formatting
+        if opts["format"] ~= nil then
+            output = opts["format"](diagnostic)
+        end
+
+        -- Option-defined formatting
+        if opts["format"] == nil then
+            -- Replace newlines. Otherwise same scenario as gutter overflow
+            local message = string.gsub(diagnostic.message, "\n", " ; ")
+
+            if string.len(message) > max_length then
+                message = string.sub(message, 1, max_length - 3) .. "..."
+            end
+
+            output = message
+            if opts["show_lnum"] then
+                output = diagnostic.lnum + 1 .. ": " .. message
+            end
+            if opts["show_icons"] then
+                local icon = opts["icons"][diagnostic.severity]
+                output = icon .. output
+            end
+        end
+
+        vim.api.nvim_echo({ { output, echo_mode } }, false, {})
     end
 end
 
