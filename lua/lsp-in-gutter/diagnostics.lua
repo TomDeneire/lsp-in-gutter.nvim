@@ -1,105 +1,96 @@
 local M = {}
 
-local _default_icons = {}
-_default_icons[vim.diagnostic.severity.ERROR] = " "
-_default_icons[vim.diagnostic.severity.WARN] = " "
-_default_icons[vim.diagnostic.severity.HINT] = " "
-_default_icons[vim.diagnostic.severity.INFO] = " "
+local _default_icons = {
+    [vim.diagnostic.severity.ERROR] = " ",
+    [vim.diagnostic.severity.WARN] = " ",
+    [vim.diagnostic.severity.HINT] = " ",
+    [vim.diagnostic.severity.INFO] = " ",
+}
 
-local _default_opts = {}
-_default_opts["icons"] = _default_icons
-_default_opts["show_icons"] = true
-_default_opts["show_lnum"] = true
-_default_opts["show_colors"] = true
--- formatter, e.g. `function format(diagnostic) return diagnostic.message end`
-_default_opts["format"] = nil
+local _default_opts = {
+    icons = _default_icons,
+    show_icons = true,
+    show_lnum = true,
+    show_colors = true,
+    format = nil,
+}
 
-local function _sort_diagnostics(diagnostics)
-    -- Create a severity order mapping (ERROR = 1 is highest priority)
+local _opts = {}
+
+local _highlight_map = {
+    [vim.diagnostic.severity.ERROR] = "ErrorMsg",
+    [vim.diagnostic.severity.WARN] = "WarningMsg",
+    [vim.diagnostic.severity.HINT] = "DiagnosticHint",
+    [vim.diagnostic.severity.INFO] = "DiagnosticInfo",
+}
+
+function M.configure(user_options)
+    _opts = vim.tbl_deep_extend("keep", user_options, _default_opts)
+end
+
+local function _sort_diagnostics(diags)
     local severity_order = {
         [vim.diagnostic.severity.ERROR] = 1,
         [vim.diagnostic.severity.WARN] = 2,
         [vim.diagnostic.severity.HINT] = 3,
-        [vim.diagnostic.severity.INFO] = 4
+        [vim.diagnostic.severity.INFO] = 4,
     }
 
-    -- Sort the diagnostics table in place
-    table.sort(diagnostics, function(a, b)
-        -- Get the order value for each diagnostic's severity
-        local a_order = severity_order[a.severity] or 999 -- Default high number for unknown severities
+    table.sort(diags, function(a, b)
+        local a_order = severity_order[a.severity] or 999
         local b_order = severity_order[b.severity] or 999
-
-        -- Compare based on severity order
         return a_order < b_order
     end)
 
-    return diagnostics
+    return diags
 end
 
--- Example usage:
--- local diagnostics = vim.diagnostic.get(bufnr, { lnum = line_nr })
--- diagnostics = sort_diagnostics(diagnostics)
-
 function M.print_line_diagnostics()
-    -- Add default options to user options
-    local opts = vim.g.lspingutter_opts
-    for key, _ in pairs(_default_opts) do
-        if opts[key] == nil then opts[key] = _default_opts[key] end
-    end
-
-    -- Get diagnostics data
     local bufnr = vim.api.nvim_get_current_buf()
     local line_nr = vim.api.nvim_win_get_cursor(0)[1] - 1
-    local diagnostics = vim.diagnostic.get(bufnr, { lnum = line_nr })
-    diagnostics = _sort_diagnostics(diagnostics)
+    local diags = vim.diagnostic.get(bufnr, { lnum = line_nr })
+    diags = _sort_diagnostics(diags)
 
-    if vim.tbl_isempty(diagnostics) then
-        -- Clear gutter
+    if vim.tbl_isempty(diags) then
         vim.api.nvim_echo({ { "", "" } }, false, {})
-    else
-        -- Prevent message overflowing gutter length
-        -- Otherwise, neovim will focus on the gutter
-        -- and require ENTER to quit
-        local max_length = vim.o.columns - 20
-
-        local diagnostic = diagnostics[1]
-        local echo_mode = ""
-        if opts["show_colors"] then
-            if diagnostic.severity == vim.diagnostic.severity.ERROR then
-                echo_mode = "ErrorMsg"
-            elseif diagnostic.severity == vim.diagnostic.severity.WARN then
-                echo_mode = "WarningMsg"
-            end
-        end
-
-        local output = ""
-
-        -- User-defined formatting
-        if opts["format"] ~= nil then
-            output = opts["format"](diagnostic)
-        end
-
-        -- Option-defined formatting
-        if opts["format"] == nil then
-            -- Replace newlines. Otherwise same scenario as gutter overflow
-            local message = string.gsub(diagnostic.message, "\n", " ; ")
-
-            if string.len(message) > max_length then
-                message = string.sub(message, 1, max_length - 3) .. "..."
-            end
-
-            output = message
-            if opts["show_lnum"] then
-                output = diagnostic.lnum + 1 .. ": " .. message
-            end
-            if opts["show_icons"] then
-                local icon = opts["icons"][diagnostic.severity]
-                output = icon .. output
-            end
-        end
-
-        vim.api.nvim_echo({ { output, echo_mode } }, false, {})
+        return
     end
+
+    local diagnostic = diags[1]
+
+    -- Determine highlight
+    local echo_hl = ""
+    if _opts.show_colors then
+        echo_hl = _highlight_map[diagnostic.severity] or ""
+    end
+
+    -- Build prefix (icon + line number) to account for its length
+    local prefix = ""
+    if _opts.show_icons then
+        prefix = _opts.icons[diagnostic.severity] or ""
+    end
+    if _opts.show_lnum then
+        prefix = prefix .. (diagnostic.lnum + 1) .. ": "
+    end
+
+    -- Max length for the full output (prefix + message)
+    local max_length = vim.o.columns - 20
+    local max_message_length = max_length - vim.fn.strdisplaywidth(prefix)
+
+    local output
+    if _opts.format ~= nil then
+        output = _opts.format(diagnostic)
+    else
+        -- Replace newlines to avoid gutter overflow
+        output = string.gsub(diagnostic.message, "\n", " ; ")
+    end
+
+    if vim.fn.strdisplaywidth(output) > max_message_length then
+        -- Truncate by characters; approximate for multibyte
+        output = string.sub(output, 1, max_message_length - 3) .. "..."
+    end
+
+    vim.api.nvim_echo({ { prefix .. output, echo_hl } }, false, {})
 end
 
 return M
