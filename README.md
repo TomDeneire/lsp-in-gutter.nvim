@@ -27,22 +27,20 @@ You can customize the plugin by calling the setup options. Here are the defaults
 return {
     'TomDeneire/lsp-in-gutter.nvim',
     config = function()
-        local icons = {}
-        icons[vim.diagnostic.severity.ERROR] = " "
-        icons[vim.diagnostic.severity.WARN] = " "
-        icons[vim.diagnostic.severity.HINT] = " "
-        icons[vim.diagnostic.severity.INFO] = " "
-
-        local opts = {}
-        opts["icons"] = icons
-        opts["show_icons"] = true
-        opts["show_lnum"] = true
-        opts["show_colors"] = true
-        -- formatter function that takes the vim.diagnostic object as argument
-        -- e.g. `function format(diagnostic) return diagnostic.message end`
-        opts["format"] = nil
-
-        require("lsp-in-gutter").setup(opts)
+        require("lsp-in-gutter").setup({
+            icons = {
+                [vim.diagnostic.severity.ERROR] = " ",
+                [vim.diagnostic.severity.WARN] = " ",
+                [vim.diagnostic.severity.HINT] = " ",
+                [vim.diagnostic.severity.INFO] = " ",
+            },
+            show_icons = true,
+            show_lnum = true,
+            show_colors = true,
+            -- optional formatter that takes a vim.Diagnostic object
+            -- e.g. function(diagnostic) return diagnostic.message end
+            format = nil,
+        })
     end,
 }
 ```
